@@ -1,0 +1,9 @@
+flashtext
+streamlit
+pandas
+playwright
+pillow
+greenlet
+schedule
+pytz
+beautifulsoup4
