@@ -89,20 +89,20 @@ def scraper():
         cursor = conn.cursor()
         
         # Check if the record already exists based on Title (or any other unique identifier)
-        cursor.execute("SELECT COUNT(*) FROM nycproawards5 WHERE Title=?", (row['Title'],))
+        cursor.execute("SELECT COUNT(*) FROM nycproawards4 WHERE Title=?", (row['Title'],))
         exists = cursor.fetchone()[0]
 
         if exists:
             # Update existing record if it exists
             cursor.execute("""
-                UPDATE nycproawards5 
+                UPDATE nycproawards4 
                 SET Agency=?, [Award Date]=?, Description=?, Category=? 
                 WHERE Title=?
             """, (row['Agency'], row['Award Date'], row['Description'], row['Category'], row['Title']))
         else:
             # Insert new record if it doesn't exist
             cursor.execute("""
-                INSERT INTO nycproawards5 (Agency, Title, [Award Date], Description, Category) 
+                INSERT INTO nycproawards4 (Agency, Title, [Award Date], Description, Category) 
                 VALUES (?, ?, ?, ?, ?)
             """, (row['Agency'], row['Title'], row['Award Date'], row['Description'], row['Category']))
 
