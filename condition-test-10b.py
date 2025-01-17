@@ -24,7 +24,7 @@ def run_scraper():
     print("schedule scrapper")
     scraper()
 
-schedule.every().day.at("11:51").do(run_scraper)
+schedule.every().day.at("23:00").do(run_scraper)
 
 
 scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
