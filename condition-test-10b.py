@@ -8,6 +8,8 @@ import threading
 import schedule
 import time
 import pyautogui
+import os
+os.environ['DISPLAY'] = ':0'
 from datetime import datetime
 from scraper import scraper
 target_tz = pytz.timezone('America/New_York')
