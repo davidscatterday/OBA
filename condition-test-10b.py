@@ -7,9 +7,6 @@ import pytz
 import threading
 import schedule
 import time
-import pyautogui
-import os
-os.environ['DISPLAY'] = ':0'
 from datetime import datetime
 from scraper import scraper
 target_tz = pytz.timezone('America/New_York')
@@ -34,24 +31,24 @@ st.set_page_config(layout="wide")
 
 from io import BytesIO
 
-def take_screenshot_as_pdf():
-    """Takes a screenshot of the entire screen and provides it for download as a PDF."""
-    screenshot = pyautogui.screenshot()
-    current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-    pdf_file_name = f"search_results_{current_time}.pdf"
+#def take_screenshot_as_pdf():
+    #"""Takes a screenshot of the entire screen and provides it for download as a PDF."""
+    #screenshot = pyautogui.screenshot()
+    #current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+    #pdf_file_name = f"search_results_{current_time}.pdf"
 
     # Save screenshot as PDF in memory
-    pdf_bytes = BytesIO()
-    screenshot.save(pdf_bytes, "PDF")
-    pdf_bytes.seek(0)  # Move to the beginning of the file
+    #pdf_bytes = BytesIO()
+    #screenshot.save(pdf_bytes, "PDF")
+    #pdf_bytes.seek(0)  # Move to the beginning of the file
 
     # Provide download button
-    st.download_button(
-        label="Download as PDF",
-        data=pdf_bytes,
-        file_name=pdf_file_name,
-        mime="application/pdf"
-    )
+    #st.download_button(
+        #label="Download as PDF",
+        #data=pdf_bytes,
+        #file_name=pdf_file_name,
+        #mime="application/pdf"
+    #)
 
 
 
@@ -257,10 +254,10 @@ def main():
         reset_all_states()
         st.rerun()
 
-    if st.session_state.get("search_clicked", False):
+    #if st.session_state.get("search_clicked", False):
 
         
-        take_screenshot_as_pdf()
+        #take_screenshot_as_pdf()
 
     # Display results only if search was clicked and filters were applied
     if st.session_state.show_results and not st.session_state.results.empty:
