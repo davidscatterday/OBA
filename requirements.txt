@@ -7,4 +7,3 @@ greenlet
 schedule
 pytz
 beautifulsoup4
-pyautogui
