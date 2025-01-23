@@ -8,3 +8,5 @@ schedule
 pytz
 beautifulsoup4
 mysql-connector-python
+threading
+scrapper_mysql
