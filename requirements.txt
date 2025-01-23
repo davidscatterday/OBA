@@ -7,3 +7,4 @@ greenlet
 schedule
 pytz
 beautifulsoup4
+mysql-connector-python

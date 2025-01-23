@@ -1,15 +1,15 @@
 import streamlit as st
 import pandas as pd
-import sqlite3
+import mysql.connector
 import hmac
 from flashtext import KeywordProcessor
 import pytz
 import threading
 import schedule
 import time
-import pyautogui
 from datetime import datetime
-from scraper import scraper
+from scrapper_mysql import scraper
+
 target_tz = pytz.timezone('America/New_York')
 
 def run_scheduler():
@@ -21,110 +21,89 @@ def run_scraper():
     print("schedule scrapper")
     scraper()
 
-schedule.every().day.at("13:15").do(run_scraper)
+schedule.every().day.at("11:10").do(run_scraper)
 
 scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
 scheduler_thread.start()
 st.set_page_config(layout="wide")
 
-
-from io import BytesIO
-
-def take_screenshot_as_pdf():
-    """Takes a screenshot of the entire screen and provides it for download as a PDF."""
-    screenshot = pyautogui.screenshot()
-    current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-    pdf_file_name = f"search_results_{current_time}.pdf"
-
-    # Save screenshot as PDF in memory
-    pdf_bytes = BytesIO()
-    screenshot.save(pdf_bytes, "PDF")
-    pdf_bytes.seek(0)  # Move to the beginning of the file
-
-    # Provide download button
-    st.download_button(
-        label="Download as PDF",
-        data=pdf_bytes,
-        file_name=pdf_file_name,
-        mime="application/pdf"
-    )
-
-
 @st.cache_resource
 def get_connection():
-    return sqlite3.connect('nycprocurement.db', check_same_thread=False)
+    return mysql.connector.connect(
+        host='sql.freedb.tech',
+        user='freedb_davidscatterday',
+        password='KC55*RM*F8ujyfn',
+        database='freedb_NYCtest'
+    )
 
 conn = get_connection()
 
 @st.cache_data
 def get_unique_values(column):
-    query = f"SELECT DISTINCT `{column}` FROM newtable ORDER BY `{column}`"
-    return pd.read_sql_query(query, conn)[column].tolist()
+    cursor = conn.cursor()
+    query = f"SELECT DISTINCT `{column}` FROM nycproawards4 ORDER BY `{column}`"
+    cursor.execute(query)
+    result = [row[0] for row in cursor.fetchall()]
+    cursor.close()
+    return result
 
 @st.cache_data
 def search_data(keyword, agency, procurement_method, fiscal_quarter, job_titles, headcount):
+    cursor = conn.cursor(dictionary=True)
     query = "SELECT * FROM newtable WHERE 1=1"
     params = []
     
     if keyword:
-        query += " AND `Services Descrption` LIKE ?"
+        query += " AND `Services Descrption` LIKE %s"
         params.append(f"%{keyword}%")
     if agency:
-        query += " AND Agency = ?"
+        query += " AND Agency = %s"
         params.append(agency)
     if procurement_method:
-        query += " AND `Procurement Method` = ?"
+        query += " AND `Procurement Method` = %s"
         params.append(procurement_method)
     if fiscal_quarter:
-        query += " AND `Fiscal Quarter` = ?"
+        query += " AND `Fiscal Quarter` = %s"
         params.append(fiscal_quarter)
     if job_titles:
-        query += " AND `Job Titles` = ?"
+        query += " AND `Job Titles` = %s"
         params.append(job_titles)
     if headcount:
-        query += " AND `Head-count` = ?"
+        query += " AND `Head-count` = %s"
         params.append(headcount)
     
-    return pd.read_sql_query(query, conn, params=params)
-def check_password():
-    """Returns `True` if the user had a correct password."""
+    cursor.execute(query, params)
+    result = cursor.fetchall()
+    cursor.close()
+    return pd.DataFrame(result)
 
+def check_password():
     def login_form():
-        """Form with widgets to collect user information"""
         with st.form("Credentials"):
             st.text_input("Username", key="username")
             st.text_input("Password", type="password", key="password")
             st.form_submit_button("Log in", on_click=password_entered)
 
     def password_entered():
-        """Checks whether a password entered by the user is correct."""
-        print(st.secrets)
         if st.session_state["username"] in st.secrets["passwords"] and hmac.compare_digest(
             st.session_state["password"],
             st.secrets.passwords[st.session_state["username"]],
         ):
             st.session_state["password_correct"] = True
-            del st.session_state["password"]  # Don't store the username or password.
+            del st.session_state["password"]
             del st.session_state["username"]
         else:
             st.session_state["password_correct"] = False
 
-    # Return True if the username + password is validated.
     if st.session_state.get("password_correct", False):
         return True
 
-    # Show inputs for username + password.
     login_form()
     if "password_correct" in st.session_state:
         st.error("😕 User not known or password incorrect")
     return False
 
-
-if not check_password():
-    st.stop()
-
 def reset_all_states():
-    # List of all session state variables to clear
     session_vars = [
         'search_clicked',
         'results',
@@ -136,25 +115,19 @@ def reset_all_states():
         'show_matches'
     ]
     
-    # Clear each session state variable
     for var in session_vars:
         if var in st.session_state:
             del st.session_state[var]
     
-    # Clear cache data
     st.cache_data.clear()
     
-    # Add a reset trigger to session state
     st.session_state.reset_trigger = True
-    # Rerun the app
     st.rerun()
 
 def main():
-    # Initialize reset trigger if not present
     if 'reset_trigger' not in st.session_state:
         st.session_state.reset_trigger = False
 
-    # Initialize session state variables
     if 'search_clicked' not in st.session_state:
         st.session_state.search_clicked = False
     if 'show_results' not in st.session_state:
@@ -178,17 +151,14 @@ def main():
 
     st.sidebar.header("Search Filters")
 
-    # Reset the widgets by using empty default values when reset_trigger is True
     default_value = "" if st.session_state.get('reset_trigger', False) else st.session_state.get('keyword', "")
+    default_index = 0 if st.session_state.get('reset_trigger', False) else None
     
-    # Sidebar inputs
     keyword = st.sidebar.text_input(
         "Keyword Search (Services Description)",
         value=default_value,
         key="keyword"
     )
-    
-    default_index = 0 if st.session_state.get('reset_trigger', False) else None
     
     agency = st.sidebar.selectbox(
         "Agency",
@@ -224,13 +194,12 @@ def main():
         index=default_index,
         key="headcount"
     )
- # Reset reset_trigger after widgets are rendered
+
     if st.session_state.get('reset_trigger', False):
         st.session_state.reset_trigger = False
-    # Check if any filter is applied
+
     filters_applied = any([keyword, agency, procurement_method, fiscal_quarter, job_titles, headcount])
 
-    # Search and Reset Buttons
     if st.sidebar.button("Search"):
         if filters_applied:
             st.session_state.search_clicked = True
@@ -250,12 +219,6 @@ def main():
         reset_all_states()
         st.rerun()
 
-    if st.session_state.get("search_clicked", False):
-
-        
-        take_screenshot_as_pdf()
-
-    # Display results only if search was clicked and filters were applied
     if st.session_state.show_results and not st.session_state.results.empty:
         st.write(f"Found {len(st.session_state.results)} results:")
         select_column = pd.DataFrame({'Select': False}, index=st.session_state.results.index)
@@ -270,7 +233,6 @@ def main():
             use_container_width=True,
         )
 
-        # Update selected rows
         current_selection = set(edited_df[edited_df['Select']].index)
         new_selections = current_selection - st.session_state.previous_selection
         deselections = st.session_state.previous_selection - current_selection
@@ -292,14 +254,12 @@ def main():
             st.write("User Selected Records:")
             st.dataframe(st.session_state.selected_rows, hide_index=True)
 
-    # Display NYC Procurement Awards only if search was performed with filters
     if st.session_state.show_awards and filters_applied:
         st.markdown("Fiscal Year 2025 NYC Government Procurement Awards")
         query = "SELECT * FROM nycproawards4"
         df_awards = pd.read_sql_query(query, conn)
         st.dataframe(df_awards, use_container_width=True)
 
-        # Keyword Matching
         if st.session_state.show_matches and not st.session_state.selected_rows.empty and keyword:
             st.markdown("Keyword Matches")
             keyword_processor = KeywordProcessor()
@@ -320,4 +280,6 @@ def main():
                 st.write("No keyword matches found.")
 
 if __name__ == "__main__":
+    if not check_password():
+        st.stop()
     main()
