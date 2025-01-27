@@ -9,6 +9,7 @@ import schedule
 import time
 import fcntl
 import os
+import sqlalchemy
 from datetime import datetime
 from scrapper_mysql import scraper
 
