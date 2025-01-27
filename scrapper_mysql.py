@@ -64,7 +64,7 @@ def scrape_data():
 
     return pd.DataFrame(data_data)
 
-def scraper():
+def scraper(host, user, password, database):
     print("Scraping data from the website...")
 
     # Scrape the data and create the DataFrame
@@ -72,10 +72,10 @@ def scraper():
 
     # MySQL connection details
     db_config = {
-        'host': 'sql.freedb.tech',
-        'user': 'freedb_davidscatterday',
-        'password': 'KC55*RM*F8ujyfn',
-        'database': 'freedb_NYCtest'
+        'host': host,
+        'user': user,
+        'password': password,
+        'database': database
     }
 
     # Connect to MySQL database

@@ -7,22 +7,38 @@ import pytz
 import threading
 import schedule
 import time
+import fcntl
+import os
 from datetime import datetime
 from scrapper_mysql import scraper
 
 target_tz = pytz.timezone('America/New_York')
 
+def run_scraper_with_lock():
+    lock_file = '/tmp/streamlit_task.lock'
+    try:
+        # Try to acquire an exclusive lock
+        lock = open(lock_file, 'w')
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        
+        # Run the scraper
+        scraper(st.secrets["mysql"]["host"], st.secrets["mysql"]["user"], st.secrets["mysql"]["password"], st.secrets["mysql"]["database"])
+        
+        # Release the lock when done
+        fcntl.flock(lock, fcntl.LOCK_UN)
+    except IOError:
+        # Another instance is already running
+        print("Scraper is already running")
+
 def run_scheduler():
     while True:
         schedule.run_pending()
-        time.sleep(1)
+        time.sleep(60)  # Check every minute
 
-def run_scraper():
-    print("schedule scrapper")
-    scraper()
+# Schedule the locked version of the scraper
+schedule.every().day.at("00:05").do(run_scraper_with_lock)
 
-schedule.every().day.at("00:55").do(run_scraper)
-
+# Start the scheduler in a daemon thread
 scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
 scheduler_thread.start()
 st.set_page_config(layout="wide")
@@ -30,10 +46,10 @@ st.set_page_config(layout="wide")
 @st.cache_resource
 def get_connection():
     return mysql.connector.connect(
-        host='sql.freedb.tech',
-        user='freedb_davidscatterday',
-        password='KC55*RM*F8ujyfn',
-        database='freedb_NYCtest'
+        host=st.secrets["mysql"]["host"],
+        user=st.secrets["mysql"]["user"],
+        password=st.secrets["mysql"]["password"],
+        database=st.secrets["mysql"]["database"]
     )
 
 conn = get_connection()
