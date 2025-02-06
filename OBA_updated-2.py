@@ -12,7 +12,6 @@ import os
 import sqlalchemy
 from datetime import datetime
 from scrapper_mysql import scraper
-from mysql.connector import pooling
 
 # Define the function to run when the button is clicked
 def run_long_process():
@@ -53,60 +52,59 @@ def run_long_process():
 st.set_page_config(layout="wide")
 
 @st.cache_resource
-def create_connection_pool():
-    return pooling.MySQLConnectionPool(
-        pool_name="mypool",
-        pool_size=5,
+def get_connection():
+    return mysql.connector.connect(
         host=st.secrets["mysql"]["host"],
         user=st.secrets["mysql"]["user"],
         password=st.secrets["mysql"]["password"],
         database=st.secrets["mysql"]["database"]
     )
 
-# Create the connection pool
-pool = create_connection_pool()
-
-def get_connection():
-    return pool.get_connection()
+conn = get_connection()
 
 @st.cache_data
 def get_unique_values(column):
-    with get_connection() as conn:
-        with conn.cursor() as cursor:
-            query = f"SELECT DISTINCT `{column}` FROM newtable ORDER BY `{column}`"
-            cursor.execute(query)
-            result = [row[0] for row in cursor.fetchall()]
+    cursor = conn.cursor()
+    query = f"SELECT DISTINCT `{column}` FROM newtable ORDER BY `{column}`"
+    cursor.execute(query)
+    result = [row[0] for row in cursor.fetchall()]
+    cursor.close()
     return result
 
 @st.cache_data
 def search_data(keyword, agency, procurement_method, fiscal_quarter, job_titles, headcount):
-    with get_connection() as conn:
-        with conn.cursor(dictionary=True) as cursor:
-            query = "SELECT * FROM newtable WHERE 1=1"
-            params = []
-            
-            if keyword:
-                query += " AND `Services Descrption` LIKE %s"
-                params.append(f"%{keyword}%")
-            if agency:
-                query += " AND Agency = %s"
-                params.append(agency)
-            if procurement_method:
-                query += " AND `Procurement Method` = %s"
-                params.append(procurement_method)
-            if fiscal_quarter:
-                query += " AND `Fiscal Quarter` = %s"
-                params.append(fiscal_quarter)
-            if job_titles:
-                query += " AND `Job Titles` = %s"
-                params.append(job_titles)
-            if headcount:
-                query += " AND `Head-count` = %s"
-                params.append(headcount)
-            
-            cursor.execute(query, params)
-            result = cursor.fetchall()
+    # while True:
+    #     try:
+    #         conn.ping(reconnect=True)
+    #         break
+    #     except mysql.connector.errors.OperationalError:
+    #         conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    query = "SELECT * FROM newtable WHERE 1=1"
+    params = []
     
+    if keyword:
+        query += " AND `Services Descrption` LIKE %s"
+        params.append(f"%{keyword}%")
+    if agency:
+        query += " AND Agency = %s"
+        params.append(agency)
+    if procurement_method:
+        query += " AND `Procurement Method` = %s"
+        params.append(procurement_method)
+    if fiscal_quarter:
+        query += " AND `Fiscal Quarter` = %s"
+        params.append(fiscal_quarter)
+    if job_titles:
+        query += " AND `Job Titles` = %s"
+        params.append(job_titles)
+    if headcount:
+        query += " AND `Head-count` = %s"
+        params.append(headcount)
+    
+    cursor.execute(query, params)
+    result = cursor.fetchall()
+    cursor.close()
     return pd.DataFrame(result)
 
 def check_password():
@@ -319,7 +317,7 @@ def main():
     if st.session_state.show_awards and filters_applied:
         st.markdown("Fiscal Year 2025 NYC Government Procurement Awards")
         query = "SELECT * FROM nycproawards4"
-        df_awards = pd.read_sql_query(query, pool.get_connection())
+        df_awards = pd.read_sql_query(query, conn)
         st.dataframe(df_awards, use_container_width=True)
 
         if st.session_state.show_matches and not st.session_state.selected_rows.empty and keyword:
