@@ -1,5 +1,4 @@
 flashtext
-streamlit
 pandas
 playwright
 pillow
@@ -8,4 +7,6 @@ schedule
 pytz
 beautifulsoup4
 mysql-connector-python==8.0.33
-SQLAlchemy==2.0.21
+mysqlclient==2.2.0
+SQLAlchemy==2.0.25
+streamlit>=1.28

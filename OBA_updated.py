@@ -1,16 +1,10 @@
+import mysqlclient
 import streamlit as st
 import pandas as pd
 import mysql.connector
 import hmac
 from flashtext import KeywordProcessor
-import pytz
-import threading
-import schedule
 import time
-import fcntl
-import os
-import sqlalchemy
-from datetime import datetime
 from scrapper_mysql import scraper
 from mysql.connector import pooling
 
@@ -63,11 +57,39 @@ def create_connection_pool():
         database=st.secrets["mysql"]["database"]
     )
 
-# Create the connection pool
-pool = create_connection_pool()
+#Initialize the connection
+conn = st.connection(
+    'mysql', 
+    type='sql', 
+    ttl=3600,
+    autocommit=True
+)
+
+# Test connection without caching
+def test_connection():
+    try:
+        conn = st.connection('mysql', type='sql', ttl=3600)
+        conn.ping(reconnect=True)
+        return True
+    except:
+        return False
+
+if not test_connection():
+    st.error("Failed basic connection test")
 
 def get_connection():
-    return pool.get_connection()
+    try:
+        return mysql.connector.connect(
+            host=st.secrets["mysql"]["host"],
+            user=st.secrets["mysql"]["user"],
+            password=st.secrets["mysql"]["password"],
+            database=st.secrets["mysql"]["database"],
+            pool_size=5,  # Add connection pooling
+            pool_reset_session=True
+        )
+    except mysql.connector.Error as err:
+        st.error(f"Database connection failed: {err}")
+        raise
 
 @st.cache_data
 def get_unique_values(column):
